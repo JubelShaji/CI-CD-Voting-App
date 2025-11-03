@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = 'jubelshaji'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/JubelShaji/CI-CD-Voting-App.git'
+            }
+        }
+
+        stage('Build & Push Docker Images') {
+            parallel {
+                stage('Building vote') {
+                    steps {
+                        script {
+                            dir('vote') {
+                                def voteImage = docker.build("${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG}")
+                                docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                                    voteImage.push()
+                                    voteImage.push('vote-latest')
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building seed') {
+                    steps {
+                        script {
+                            dir('seed-data') {
+                                def seedImage = docker.build("${DOCKER_REGISTRY}/simple_vote_app:seed-${IMAGE_TAG}")
+                                docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                                    seedImage.push()
+                                    seedImage.push('seed-latest')
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building worker') {
+                    steps {
+                        script {
+                            dir('worker') {
+                                def workerImage = docker.build("${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG}")
+                                docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                                    workerImage.push()
+                                    workerImage.push('worker-latest')
+                                }
+                            }
+                        }
+                    }
+                }
+                stage('Building result') {
+                    steps {
+                        script {
+                            dir('result') {
+                                def resultImage = docker.build("${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG}")
+                                docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                                    resultImage.push()
+                                    resultImage.push('result-latest')
+                                }
+                            }
+                        }
+                    }
+                }
+                
+            }
+        }
+        stage('Update tagname') {
+            steps {
+                sh """
+                    sed -i 's|jubelshaji/jenkin-kind:backend-latest|${DOCKER_REGISTRY}/jenkin-kind:backend-${IMAGE_TAG}|g' kind/backend-deployment.yaml
+                    sed -i 's|jubelshaji/jenkin-kind:frontend-latest|${DOCKER_REGISTRY}/jenkin-kind:frontend-${IMAGE_TAG}|g' kind/frontend-deployment.yaml
+                """
+            }
+        }
+        stage('Deployment') {
+            steps {
+                sshagent (credentials: ['ssh-credential']) {
+                     sh """
+                        ssh -o StrictHostKeyChecking=no ${REMOTE_HOST} 'sudo kubectl apply -f mernapp/'
+                     """
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo '🎉 Pipeline completed successfully!' }
+        failure { echo '❌ Pipeline failed!' }
+        always { sh 'docker system prune -f' }
+    }
+}
