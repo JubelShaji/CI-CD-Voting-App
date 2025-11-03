@@ -14,9 +14,6 @@ spec:
         app: jenkins
     spec:
       serviceAccountName: jenkins
-      securityContext:
-        runAsUser: 1000
-        fsGroup: 999
       containers:
       - name: jenkins
         image: jenkins/jenkins:lts
