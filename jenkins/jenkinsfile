@@ -74,18 +74,17 @@ pipeline {
         stage('Update tagname') {
             steps {
                 sh """
-                    sed -i 's|jubelshaji/jenkin-kind:backend-latest|${DOCKER_REGISTRY}/jenkin-kind:backend-${IMAGE_TAG}|g' kind/backend-deployment.yaml
-                    sed -i 's|jubelshaji/jenkin-kind:frontend-latest|${DOCKER_REGISTRY}/jenkin-kind:frontend-${IMAGE_TAG}|g' kind/frontend-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:vote-latest|${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG}|g' k8s-specifications/vote-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:worker-latest|${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG}|g' k8s-specifications/worker-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:result-latest|${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG}|g' k8s-specifications/result-deployment.yaml
                 """
             }
         }
         stage('Deployment') {
             steps {
-                sshagent (credentials: ['ssh-credential']) {
                      sh """
-                        ssh -o StrictHostKeyChecking=no ${REMOTE_HOST} 'sudo kubectl apply -f mernapp/'
+                        kubectl apply -f k8s-specifications/'
                      """
-                }
             }
         }
     }

@@ -16,7 +16,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: jenkins/jenkins:lts
+        image: jubelshaji/jenkins:withdocker
         ports:
           - containerPort: 8080
             name: http
@@ -34,8 +34,6 @@ spec:
             mountPath: /var/jenkins_home
           - name: docker-sock
             mountPath: /var/run/docker.sock
-          - name: docker-bin
-            mountPath: /usr/bin/docker
       volumes:
         - name: jenkins-data
           persistentVolumeClaim:
@@ -43,9 +41,6 @@ spec:
         - name: docker-sock
           hostPath:
             path: /var/run/docker.sock
-        - name: docker-bin
-          hostPath:
-            path: /usr/bin/docker
 ---
 
 apiVersion: v1
