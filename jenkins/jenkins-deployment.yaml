@@ -16,7 +16,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: jenkins/jenkins:lts
+        image: jubelshaji/jenkins:kaniko
         ports:
           - containerPort: 8080
             name: http
@@ -25,12 +25,30 @@ spec:
         volumeMounts:
           - name: jenkins-data
             mountPath: /var/jenkins_home
+          - name: kaniko-workspace
+            mountPath: /workspace
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+          - "--context=dir:///workspace"
+          - "--dockerfile=/workspace/Dockerfile"
+          - "--destination=jubelshaji/simple_vote_app"
+        volumeMounts:
+          - name: kaniko-workspace
+            mountPath: /workspace
+          - name: kaniko-secret
+            mountPath: /kaniko/.docker
+            readOnly: true
       volumes:
         - name: jenkins-data
           persistentVolumeClaim:
             claimName: jenkins-pvc
+        - name: kaniko-workspace
+          emptyDir: {}
+        - name: kaniko-secret
+          secret:
+            secretName: regcred
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
