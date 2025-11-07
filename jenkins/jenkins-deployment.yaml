@@ -16,7 +16,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: jubelshaji/jenkins:kaniko
+        image: jenkins/jenkins:lts
         ports:
           - containerPort: 8080
             name: http
@@ -29,10 +29,6 @@ spec:
             mountPath: /workspace
       - name: kaniko
         image: gcr.io/kaniko-project/executor:latest
-        args:
-          - "--context=dir:///workspace"
-          - "--dockerfile=/workspace/Dockerfile"
-          - "--destination=jubelshaji/simple_vote_app"
         volumeMounts:
           - name: kaniko-workspace
             mountPath: /workspace
