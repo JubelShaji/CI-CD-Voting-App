@@ -1,26 +1,30 @@
 pipeline {
-  agent {
-    kubernetes {
-      yaml """
+    agent {
+        kubernetes {
+            yaml """
 apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins
   containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    tty: true
-    volumeMounts:
-    - name: kaniko-secret
-      mountPath: /kaniko/.docker
-      readOnly: true
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+      tty: true
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      tty: true
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+          readOnly: true
   volumes:
-  - name: kaniko-secret
-    secret:
-      secretName: regcred
+    - name: kaniko-secret
+      secret:
+        secretName: regcred
 """
+        }
     }
-  }
 
     environment {
         DOCKER_REGISTRY = 'jubelshaji'
@@ -39,14 +43,16 @@ spec:
             parallel {
                 stage('Build Vote Image') {
                     steps {
-                        sh """
-                            kaniko \
-                              --context=dir://\$(pwd)/vote \
-                              --dockerfile=Dockerfile \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG} \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-latest \
-                              --verbosity=info
-                        """
+                        container('kaniko') {
+                            sh """
+                                /kaniko/executor \
+                                    --context=dir://\$(pwd)/vote \
+                                    --dockerfile=Dockerfile \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG} \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-latest \
+                                    --verbosity=info
+                            """
+                        }
                     }
                 }
 
