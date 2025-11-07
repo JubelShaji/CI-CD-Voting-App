@@ -1,10 +1,30 @@
 pipeline {
-    agent any
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    tty: true
+    volumeMounts:
+    - name: kaniko-secret
+      mountPath: /kaniko/.docker
+      readOnly: true
+  volumes:
+  - name: kaniko-secret
+    secret:
+      secretName: regcred
+"""
+    }
+  }
 
     environment {
         DOCKER_REGISTRY = 'jubelshaji'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        REGISTRY_URL = 'https://index.docker.io/v1/'
     }
 
     stages {
@@ -22,7 +42,7 @@ pipeline {
                         sh """
                             kaniko \
                               --context=dir://\$(pwd)/vote \
-                              --dockerfile=vote/Dockerfile \
+                              --dockerfile=Dockerfile \
                               --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG} \
                               --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-latest \
                               --verbosity=info
@@ -32,40 +52,46 @@ pipeline {
 
                 stage('Build Seed Image') {
                     steps {
-                        sh """
-                            kaniko \
-                              --context=dir://\$(pwd)/seed-data \
-                              --dockerfile=seed-data/Dockerfile \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-${IMAGE_TAG} \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-latest \
-                              --verbosity=info
-                        """
+                        container('kaniko') {
+                            sh """
+                                /kaniko/executor \
+                                    --context=dir://\$(pwd)/seed-data \
+                                    --dockerfile=Dockerfile \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-${IMAGE_TAG} \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-latest \
+                                    --verbosity=info
+                            """
+                        }
                     }
                 }
 
                 stage('Build Worker Image') {
                     steps {
-                        sh """
-                            kaniko \
-                              --context=dir://\$(pwd)/worker \
-                              --dockerfile=worker/Dockerfile \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG} \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-latest \
-                              --verbosity=info
-                        """
+                        container('kaniko') {
+                            sh """
+                                /kaniko/executor \
+                                    --context=dir://\$(pwd)/worker \
+                                    --dockerfile=Dockerfile \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG} \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-latest \
+                                    --verbosity=info
+                            """
+                        }
                     }
                 }
 
                 stage('Build Result Image') {
                     steps {
-                        sh """
-                            kaniko \
-                              --context=dir://\$(pwd)/result \
-                              --dockerfile=result/Dockerfile \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG} \
-                              --destination=${DOCKER_REGISTRY}/simple_vote_app:result-latest \
-                              --verbosity=info
-                        """
+                        container('kaniko') {
+                            sh """
+                                /kaniko/executor \
+                                    --context=dir://\$(pwd)/result \
+                                    --dockerfile=Dockerfile \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG} \
+                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:result-latest \
+                                    --verbosity=info
+                            """
+                        }
                     }
                 }
             }

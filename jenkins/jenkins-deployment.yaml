@@ -25,25 +25,10 @@ spec:
         volumeMounts:
           - name: jenkins-data
             mountPath: /var/jenkins_home
-          - name: kaniko-workspace
-            mountPath: /workspace
-      - name: kaniko
-        image: gcr.io/kaniko-project/executor:latest
-        volumeMounts:
-          - name: kaniko-workspace
-            mountPath: /workspace
-          - name: kaniko-secret
-            mountPath: /kaniko/.docker
-            readOnly: true
       volumes:
         - name: jenkins-data
           persistentVolumeClaim:
             claimName: jenkins-pvc
-        - name: kaniko-workspace
-          emptyDir: {}
-        - name: kaniko-secret
-          secret:
-            secretName: regcred
 ---
 apiVersion: v1
 kind: Service
