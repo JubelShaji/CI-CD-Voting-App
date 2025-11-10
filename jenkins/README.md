@@ -16,8 +16,8 @@ kubectl create secret docker-registry regcred \
 ```
 
 ##  Configure Kubernets cloud in jenkins:
-```
 ### Manage Jenkins -> Cloud -> New Cloud -> Kubernets ->
+```
 Name : Kubernets
 Kubernetes Namespace : Jenkins
 Jenkins URL : http://jenkins.jenkins.svc.cluster.local:8080
