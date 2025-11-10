@@ -13,6 +13,5 @@ nodes:
       hostPort: 81
       protocol: TCP
   - role: worker
-  - role: worker
 
 # kind create cluster --config kind-config.yaml

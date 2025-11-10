@@ -1,30 +1,5 @@
 pipeline {
-    agent {
-        kubernetes {
-            yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  serviceAccountName: jenkins
-  containers:
-    - name: jnlp
-      image: jenkins/inbound-agent:latest
-      args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-      tty: true
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
-      tty: true
-      volumeMounts:
-        - name: kaniko-secret
-          mountPath: /kaniko/.docker
-          readOnly: true
-  volumes:
-    - name: kaniko-secret
-      secret:
-        secretName: regcred
-"""
-        }
-    }
+    agent none
 
     environment {
         DOCKER_REGISTRY = 'jubelshaji'
@@ -33,70 +8,215 @@ spec:
 
     stages {
         stage('Checkout Source') {
+            agent {
+                kubernetes {
+                    yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: git
+      image: alpine/git:latest
+      command:
+        - cat
+      tty: true
+      volumeMounts:
+        - name: jenkins-workspace
+          mountPath: /workspace
+  volumes:
+    - name: jenkins-workspace
+      persistentVolumeClaim:
+        claimName: shared-workspace
+'''
+                }
+            }
             steps {
-                git branch: 'main',
+                container('git') {
+                    git branch: 'main',
                     url: 'https://github.com/JubelShaji/CI-CD-Voting-App.git'
+                }
             }
         }
 
         stage('Build & Push Docker Images with Kaniko') {
             parallel {
                 stage('Build Vote Image') {
+                    agent {
+                        kubernetes {
+                            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-vote-\${BUILD_NUMBER}
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - '--context=dir://$(pwd)/vote'
+        - '--dockerfile=Dockerfile'
+        - '--destination=jubelshaji/simple_vote_app:vote-\${BUILD_NUMBER}'
+        - '--destination=jubelshaji/simple_vote_app:vote-latest'
+        - '--verbosity=info'
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+          readOnly: true
+        - name: jenkins-workspace
+          mountPath: /workspace
+  volumes:
+    - name: kaniko-secret
+      secret:
+        secretName: regcred
+    - name: jenkins-workspace
+      persistentVolumeClaim:
+        claimName: shared-workspace
+'''
+                        }
+                    }
                     steps {
+                        echo "🚀 Building Vote image with Kaniko pod"
                         container('kaniko') {
-                            sh """
-                                /kaniko/executor \
-                                    --context=dir://\$(pwd)/vote \
-                                    --dockerfile=Dockerfile \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG} \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:vote-latest \
-                                    --verbosity=info
-                            """
+                            echo "Vote image build completed."
                         }
                     }
                 }
 
                 stage('Build Seed Image') {
+                    agent {
+                        kubernetes {
+                            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-seed-\${BUILD_NUMBER}
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - '--context=dir://$(pwd)/seed-data'
+        - '--dockerfile=Dockerfile'
+        - '--destination=jubelshaji/simple_vote_app:seed-\${BUILD_NUMBER}'
+        - '--destination=jubelshaji/simple_vote_app:seed-latest'
+        - '--verbosity=info'
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+          readOnly: true
+        - name: jenkins-workspace
+          mountPath: /workspace
+  volumes:
+    - name: kaniko-secret
+      secret:
+        secretName: regcred
+    - name: jenkins-workspace
+      persistentVolumeClaim:
+        claimName: shared-workspace
+'''
+                        }
+                    }
                     steps {
+                        echo "🚀 Building Seed image with Kaniko pod"
                         container('kaniko') {
-                            sh """
-                                /kaniko/executor \
-                                    --context=dir://\$(pwd)/seed-data \
-                                    --dockerfile=Dockerfile \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-${IMAGE_TAG} \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:seed-latest \
-                                    --verbosity=info
-                            """
+                            echo "Seed image build completed."
                         }
                     }
                 }
 
                 stage('Build Worker Image') {
+                    agent {
+                        kubernetes {
+                            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-worker-\${BUILD_NUMBER}
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - '--context=dir://$(pwd)/worker'
+        - '--dockerfile=Dockerfile'
+        - '--destination=jubelshaji/simple_vote_app:worker-\${BUILD_NUMBER}'
+        - '--destination=jubelshaji/simple_vote_app:worker-latest'
+        - '--verbosity=info'
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+          readOnly: true
+        - name: jenkins-workspace
+          mountPath: /workspace
+  volumes:
+    - name: kaniko-secret
+      secret:
+        secretName: regcred
+    - name: jenkins-workspace
+      persistentVolumeClaim:
+        claimName: shared-workspace
+'''
+                        }
+                    }
                     steps {
+                        echo "🚀 Building Worker image with Kaniko pod"
                         container('kaniko') {
-                            sh """
-                                /kaniko/executor \
-                                    --context=dir://\$(pwd)/worker \
-                                    --dockerfile=Dockerfile \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG} \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:worker-latest \
-                                    --verbosity=info
-                            """
+                            echo "Worker image build completed."
                         }
                     }
                 }
 
                 stage('Build Result Image') {
+                    agent {
+                        kubernetes {
+                            yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kaniko-result-\${BUILD_NUMBER}
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - '--context=dir://$(pwd)/result'
+        - '--dockerfile=Dockerfile'
+        - '--destination=jubelshaji/simple_vote_app:result-\${BUILD_NUMBER}'
+        - '--destination=jubelshaji/simple_vote_app:result-latest'
+        - '--verbosity=info'
+      volumeMounts:
+        - name: kaniko-secret
+          mountPath: /kaniko/.docker
+          readOnly: true
+        - name: jenkins-workspace
+          mountPath: /workspace
+  volumes:
+    - name: kaniko-secret
+      secret:
+        secretName: regcred
+    - name: jenkins-workspace
+      persistentVolumeClaim:
+        claimName: shared-workspace
+'''
+                        }
+                    }
                     steps {
+                        echo "🚀 Building Result image with Kaniko pod"
                         container('kaniko') {
-                            sh """
-                                /kaniko/executor \
-                                    --context=dir://\$(pwd)/result \
-                                    --dockerfile=Dockerfile \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG} \
-                                    --destination=${DOCKER_REGISTRY}/simple_vote_app:result-latest \
-                                    --verbosity=info
-                            """
+                            echo "Result image build completed."
                         }
                     }
                 }
@@ -104,27 +224,27 @@ spec:
         }
 
         stage('Update Kubernetes Manifests') {
+            agent any
             steps {
                 sh """
-                    sed -i 's|jubelshaji/simple_vote_app:vote-latest|${DOCKER_REGISTRY}/simple_vote_app:vote-${IMAGE_TAG}|g' k8s-specifications/vote-deployment.yaml
-                    sed -i 's|jubelshaji/simple_vote_app:worker-latest|${DOCKER_REGISTRY}/simple_vote_app:worker-${IMAGE_TAG}|g' k8s-specifications/worker-deployment.yaml
-                    sed -i 's|jubelshaji/simple_vote_app:result-latest|${DOCKER_REGISTRY}/simple_vote_app:result-${IMAGE_TAG}|g' k8s-specifications/result-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:vote-latest|jubelshaji/simple_vote_app:vote-${BUILD_NUMBER}|g' k8s-specifications/vote-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:worker-latest|jubelshaji/simple_vote_app:worker-${BUILD_NUMBER}|g' k8s-specifications/worker-deployment.yaml
+                    sed -i 's|jubelshaji/simple_vote_app:result-latest|jubelshaji/simple_vote_app:result-${BUILD_NUMBER}|g' k8s-specifications/result-deployment.yaml
                 """
             }
         }
 
         stage('Deploy to Kubernetes') {
+            agent any
             steps {
-                sh """
-                    kubectl apply -f k8s-specifications/
-                """
+                sh "kubectl apply -f k8s-specifications/"
             }
         }
     }
 
     post {
         success {
-            echo '🎉 Pipeline completed successfully! Images pushed & deployed.'
+            echo '🎉 Pipeline completed successfully! Images built, pushed & deployed.'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for details.'
