@@ -20,11 +20,6 @@ spec:
       image: alpine/git:latest
       command: ['cat']
       tty: true
-      securityContext:
-        runAsUser: 0
-      volumeMounts:
-        - name: shared-workspace
-          mountPath: /workspace
 
     - name: kaniko-vote
       image: gcr.io/kaniko-project/executor:debug
@@ -34,8 +29,6 @@ spec:
         - name: kaniko-secret
           mountPath: /kaniko/.docker
           readOnly: true
-        - name: shared-workspace
-          mountPath: /workspace
 
     - name: kaniko-seed
       image: gcr.io/kaniko-project/executor:debug
@@ -45,8 +38,6 @@ spec:
         - name: kaniko-secret
           mountPath: /kaniko/.docker
           readOnly: true
-        - name: shared-workspace
-          mountPath: /workspace
 
     - name: kaniko-worker
       image: gcr.io/kaniko-project/executor:debug
@@ -56,8 +47,6 @@ spec:
         - name: kaniko-secret
           mountPath: /kaniko/.docker
           readOnly: true
-        - name: shared-workspace
-          mountPath: /workspace
 
     - name: kaniko-result
       image: gcr.io/kaniko-project/executor:debug
@@ -67,15 +56,11 @@ spec:
         - name: kaniko-secret
           mountPath: /kaniko/.docker
           readOnly: true
-        - name: shared-workspace
-          mountPath: /workspace
 
   volumes:
     - name: kaniko-secret
       secret:
         secretName: regcred
-    - name: shared-workspace
-      emptyDir: {}
 """
                 }
             }
@@ -85,9 +70,7 @@ spec:
                     steps {
                         container('git') {
                             echo "📦 Checking out source code..."
-                            dir('/workspace') {
-                                git branch: 'main', url: 'https://github.com/JubelShaji/CI-CD-Voting-App.git'
-                            }
+                            git branch: 'main', url: 'https://github.com/JubelShaji/CI-CD-Voting-App.git'
                         }
                     }
                 }
@@ -100,8 +83,8 @@ spec:
                                     echo "🚀 Building Vote image..."
                                     sh '''
                                     /kaniko/executor \
-                                        --context=dir:///workspace/vote \
-                                        --dockerfile=/workspace/vote/Dockerfile \
+                                        --context=dir:///home/jenkins/agent/workspace/voteapp/vote \
+                                        --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:vote-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:vote-latest \
                                         --verbosity=info
@@ -116,8 +99,8 @@ spec:
                                     echo "🚀 Building Seed image..."
                                     sh '''
                                     /kaniko/executor \
-                                        --context=dir:///workspace/seed-data \
-                                        --dockerfile=/workspace/seed-data/Dockerfile \
+                                        --context=dir:///home/jenkins/agent/workspace/voteapp/seed-data \
+                                        --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:seed-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:seed-latest \
                                         --verbosity=info
@@ -132,8 +115,8 @@ spec:
                                     echo "🚀 Building Worker image..."
                                     sh '''
                                     /kaniko/executor \
-                                        --context=dir:///workspace/worker \
-                                        --dockerfile=/workspace/worker/Dockerfile \
+                                        --context=dir:///home/jenkins/agent/workspace/voteapp/worker \
+                                        --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:worker-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:worker-latest \
                                         --verbosity=info
@@ -148,8 +131,8 @@ spec:
                                     echo "🚀 Building Result image..."
                                     sh '''
                                     /kaniko/executor \
-                                        --context=dir:///workspace/result \
-                                        --dockerfile=/workspace/result/Dockerfile \
+                                        --context=dir:///home/jenkins/agent/workspace/voteapp/result \
+                                        --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:result-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:result-latest \
                                         --verbosity=info
