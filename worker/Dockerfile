@@ -9,6 +9,7 @@
 
 # build compiles the program for the builder's local platform
 FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:7.0 AS build
+ENV NUGET_PACKAGES=/tmp/nuget/packages
 ARG TARGETPLATFORM
 ARG TARGETARCH=amd64
 ARG BUILDPLATFORM
