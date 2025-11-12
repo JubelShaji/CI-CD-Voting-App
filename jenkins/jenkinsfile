@@ -90,6 +90,7 @@ spec:
                                         --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:vote-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:vote-latest \
+                                        --ignore-path=/product_uuid \
                                         --verbosity=info
                                     '''
                                 }
@@ -106,6 +107,7 @@ spec:
                                         --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:seed-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:seed-latest \
+                                        --ignore-path=/product_uuid \
                                         --verbosity=info
                                     '''
                                 }
@@ -122,6 +124,7 @@ spec:
                                         --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:worker-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:worker-latest \
+                                        --ignore-path=/product_uuid \
                                         --verbosity=info
                                     '''
                                 }
@@ -138,6 +141,7 @@ spec:
                                         --dockerfile=Dockerfile \
                                         --destination=jubelshaji/simple_vote_app:result-${BUILD_NUMBER} \
                                         --destination=jubelshaji/simple_vote_app:result-latest \
+                                        --ignore-path=/product_uuid \
                                         --verbosity=info
                                     '''
                                 }
@@ -151,6 +155,7 @@ spec:
         stage('Update Kubernetes Manifests') {
             agent any
             steps {
+                git branch: 'main', url: 'https://github.com/JubelShaji/CI-CD-Voting-App.git'
                 sh """
                 sed -i 's|jubelshaji/simple_vote_app:vote-latest|jubelshaji/simple_vote_app:vote-${BUILD_NUMBER}|g' k8s-specifications/vote-deployment.yaml
                 sed -i 's|jubelshaji/simple_vote_app:worker-latest|jubelshaji/simple_vote_app:worker-${BUILD_NUMBER}|g' k8s-specifications/worker-deployment.yaml
