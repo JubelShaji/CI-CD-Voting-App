@@ -16,7 +16,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: jenkins/jenkins:lts
+        image: jubelshaji/jenkins:kubectl
         ports:
           - containerPort: 8080
             name: http
