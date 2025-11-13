@@ -1,3 +1,9 @@
+## To start Jenkins :
+```
+cd CI-CD-Voting-App
+kubectl apply -f jenkins/jenkins-namespace.yml
+kubectl apply -f jenkins/
+```
 ## Get Jenkins Initial Admin Password :
 ```
 kubectl get pods -n jenkins (Copy pod name)
