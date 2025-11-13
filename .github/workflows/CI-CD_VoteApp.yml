@@ -1,0 +1,69 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  DOCKER_REGISTRY: jubelshaji
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -t $DOCKER_REGISTRY/simple_vote_app:vote-${{ github.run_number }} vote
+          docker build -t $DOCKER_REGISTRY/simple_vote_app:seed-${{ github.run_number }} seed-data
+          docker build -t $DOCKER_REGISTRY/simple_vote_app:worker-${{ github.run_number }} worker
+          docker build -t $DOCKER_REGISTRY/simple_vote_app:result-${{ github.run_number }} result
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Push Docker images
+        run: |
+          docker push $DOCKER_REGISTRY/simple_vote_app:vote-${{ github.run_number }}
+          docker push $DOCKER_REGISTRY/simple_vote_app:seed-${{ github.run_number }}
+          docker push $DOCKER_REGISTRY/simple_vote_app:worker-${{ github.run_number }}
+          docker push $DOCKER_REGISTRY/simple_vote_app:result-${{ github.run_number }}
+          docker tag $DOCKER_REGISTRY/simple_vote_app:vote-${{ github.run_number }} $DOCKER_REGISTRY/simple_vote_app:vote-latest
+          docker tag $DOCKER_REGISTRY/simple_vote_app:seed-${{ github.run_number }} $DOCKER_REGISTRY/simple_vote_app:seed-latest
+          docker tag $DOCKER_REGISTRY/simple_vote_app:worker-${{ github.run_number }} $DOCKER_REGISTRY/simple_vote_app:worker-latest
+          docker tag $DOCKER_REGISTRY/simple_vote_app:result-${{ github.run_number }} $DOCKER_REGISTRY/simple_vote_app:result-latest
+          
+          docker push $DOCKER_REGISTRY/simple_vote_app:vote-latest
+          docker push $DOCKER_REGISTRY/simple_vote_app:seed-latest
+          docker push $DOCKER_REGISTRY/simple_vote_app:worker-latest
+          docker push $DOCKER_REGISTRY/simple_vote_app:result-latest
+
+      - name: Deploy to remote server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "k8s-specifications/"
+          target: "/home/${{ secrets.SERVER_USER }}/app"
+              
+      - name: Run deployment on remote server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+              cd /home/${{ secrets.SERVER_USER }}/app
+              sed -i 's|jubelshaji/simple_vote_app:vote-latest|jubelshaji/simple_vote_app:vote-${{ github.run_number }}|g' k8s-specifications/vote-deployment.yaml
+              sed -i 's|jubelshaji/simple_vote_app:worker-latest|jubelshaji/simple_vote_app:worker-${{ github.run_number }}|g' k8s-specifications/worker-deployment.yaml
+              sed -i 's|jubelshaji/simple_vote_app:result-latest|jubelshaji/simple_vote_app:result-${{ github.run_number }}|g' k8s-specifications/result-deployment.yaml
+              sudo sudo kubectl apply -f k8s-specifications/
