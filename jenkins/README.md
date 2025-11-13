@@ -31,5 +31,5 @@ Jenkins tunnel : jenkins.jenkins.svc.cluster.local:50000
 ```
 ## Jenkins pipeline job name :
 ```
-Use ** 'voteapp'  ** otherwise change path of kaniko build context for every build in pipeline.
+Use ' voteapp ' , otherwise change path of kaniko build context for every build in the pipeline.
 ```
